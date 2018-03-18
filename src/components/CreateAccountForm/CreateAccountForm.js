@@ -4,11 +4,12 @@ import update from 'immutability-helper';
 import { run, ruleRunner } from '../../utils/FormValidation/ruleRunner.js'
 import { required, mustMatch, minLength } from '../../utils/FormValidation/rules.js';
 import $ from 'jquery';
+import axios from 'axios';
 
 const fieldValidations = [
-  ruleRunner("firstName", "First Name", required),
-  ruleRunner("emailAddress", "Email Address", required),
-  ruleRunner("password1", "Password", required, minLength(6)),
+  ruleRunner("username", "First Name", required),
+  ruleRunner("login", "Email Address", required),
+  ruleRunner("password1", "Password", required, minLength(8)),
   ruleRunner("password2", "Password Confirmation", mustMatch("password1", "Password"))
 ];
 
@@ -46,10 +47,22 @@ class CreateAccountForm extends Component {
     };
   }
 
+  onCreateAccount(data) {
+    console.log(data)
+    axios.post('http://localhost:8888/auth/signup/', data)
+    .then(function (res) {
+      console.log(res);
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+  }
+
   handleSubmitClicked() {
     this.setState({showErrors: true});
     if($.isEmptyObject(this.state.validationErrors) === false) return null;
-    return this.props.onCreateAccount(this.state);
+    //TODO send data to the server
+    return this.onCreateAccount(this.state);
   }
 
   render() {
@@ -57,13 +70,13 @@ class CreateAccountForm extends Component {
       <div className="CreateAccount">
         <h2>Create a New Account</h2>
 
-        <TextView placeholder="First Name" showError={this.state.showErrors}
-                text={this.props.firstName} onFieldChanged={this.handleFieldChanged("firstName")}
-                errorText={this.errorFor("firstName")} /> 
+        <TextView placeholder="username" showError={this.state.showErrors}
+                text={this.props.username} onFieldChanged={this.handleFieldChanged("username")}
+                errorText={this.errorFor("username")} /> 
 
-        <TextView placeholder="Email Address" showError={this.state.showErrors}
-                text={this.props.emailAddress} onFieldChanged={this.handleFieldChanged("emailAddress")}
-                errorText={this.errorFor("emailAddress")} /> 
+        <TextView placeholder="login" showError={this.state.showErrors}
+                text={this.props.login} onFieldChanged={this.handleFieldChanged("login")}
+                errorText={this.errorFor("login")} /> 
 
         <TextView placeholder="Password" showError={this.state.showErrors} type="password"
                   text={this.props.password1} onFieldChanged={this.handleFieldChanged("password1")}
