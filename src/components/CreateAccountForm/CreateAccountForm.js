@@ -1,16 +1,18 @@
 import React, { Component } from 'react';
-import TextView from '../../utils/FormValidation/TextView.js';
-import update from 'immutability-helper';
-import { run, ruleRunner } from '../../utils/FormValidation/ruleRunner.js'
-import { required, mustMatch, minLength } from '../../utils/FormValidation/rules.js';
 import $ from 'jquery';
 import axios from 'axios';
+import update from 'immutability-helper';
+
+import ErrorModal from '../ErrorModal/ErrorModal';
+import TextView from '../../utils/FormValidation/TextView.js';
+import { run, ruleRunner } from '../../utils/FormValidation/ruleRunner.js'
+import { required, mustMatch, minLength } from '../../utils/FormValidation/rules.js';
 
 const fieldValidations = [
   ruleRunner("username", "First Name", required),
-  ruleRunner("login", "Email Address", required),
-  ruleRunner("password1", "Password", required, minLength(8)),
-  ruleRunner("password2", "Password Confirmation", mustMatch("password1", "Password"))
+  ruleRunner("email", "Email Address", required),
+  ruleRunner("password", "Password", required, minLength(8)),
+  ruleRunner("password2", "Password Confirmation", mustMatch("password", "Password"))
 ];
 
 class CreateAccountForm extends Component {
@@ -19,10 +21,13 @@ class CreateAccountForm extends Component {
     super(props);
     this.handleFieldChanged = this.handleFieldChanged.bind(this);
     this.handleSubmitClicked = this.handleSubmitClicked.bind(this);
+    this.onCreateAccount = this.onCreateAccount.bind(this);
+    this.onModalClick = this.onModalClick.bind(this);
     this.errorFor = this.errorFor.bind(this);
     this.state = {
       showErrors: false,
-      validationErrors: { },
+      validationErrors: {},
+      serverErrors: []
     }
   }
 
@@ -50,18 +55,26 @@ class CreateAccountForm extends Component {
   onCreateAccount(data) {
     console.log(data)
     axios.post('http://localhost:8888/auth/signup/', data)
-    .then(function (res) {
-      console.log(res);
+    .then((res) => {
+      if(res.data.success) {
+        console.log(res.data);
+      } else {
+        this.setState({...this.state, serverErrors: res.data.e})
+      }
     })
-    .catch(function (err) {
+    .catch((err) => {
       console.log(err);
     });
+  }
+
+  onModalClick() {
+    console.log('modal was clicked on')
+    this.setState({...this.state, serverErrors: []})
   }
 
   handleSubmitClicked() {
     this.setState({showErrors: true});
     if($.isEmptyObject(this.state.validationErrors) === false) return null;
-    //TODO send data to the server
     return this.onCreateAccount(this.state);
   }
 
@@ -74,18 +87,25 @@ class CreateAccountForm extends Component {
                 text={this.props.username} onFieldChanged={this.handleFieldChanged("username")}
                 errorText={this.errorFor("username")} /> 
 
-        <TextView placeholder="login" showError={this.state.showErrors}
-                text={this.props.login} onFieldChanged={this.handleFieldChanged("login")}
-                errorText={this.errorFor("login")} /> 
+        <TextView placeholder="email" showError={this.state.showErrors}
+                text={this.props.email} onFieldChanged={this.handleFieldChanged("email")}
+                errorText={this.errorFor("email")} /> 
 
         <TextView placeholder="Password" showError={this.state.showErrors} type="password"
-                  text={this.props.password1} onFieldChanged={this.handleFieldChanged("password1")}
-                  errorText={this.errorFor("password1")} />
+                  text={this.props.password1} onFieldChanged={this.handleFieldChanged("password")}
+                  errorText={this.errorFor("password")} />
 
         <TextView placeholder="Confirm Password" showError={this.state.showErrors} type="password"
                   text={this.props.password2} onFieldChanged={this.handleFieldChanged("password2")}
                   errorText={this.errorFor("password2")} />
         <input id="CreateAccountButton" type='submit' value="Create Account" onClick={this.handleSubmitClicked} ></input>
+
+        {(this.state.serverErrors.length != 0) && (
+          <ErrorModal
+            onClick={this.onModalClick}
+            errorMessage={this.state.serverErrors}
+          />
+        )}
       </div>
     );
   }
