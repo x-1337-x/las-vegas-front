@@ -1,7 +1,5 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
-import CreateAccountForm from './components/CreateAccountForm/CreateAccountForm.js'
+import React, { Component } from "react";
+import CreateAccountForm from "./components/CreateAccountForm/CreateAccountForm.js";
 
 class App extends Component {
   render() {

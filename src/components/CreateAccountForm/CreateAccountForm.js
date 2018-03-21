@@ -1,112 +1,171 @@
-import React, { Component } from 'react';
-import $ from 'jquery';
-import axios from 'axios';
-import update from 'immutability-helper';
+import React, { Component } from "react";
+import axios from "axios";
 
-import ErrorModal from '../ErrorModal/ErrorModal';
-import TextView from '../../utils/FormValidation/TextView.js';
-import { run, ruleRunner } from '../../utils/FormValidation/ruleRunner.js'
-import { required, mustMatch, minLength } from '../../utils/FormValidation/rules.js';
-
-const fieldValidations = [
-  ruleRunner("username", "First Name", required),
-  ruleRunner("email", "Email Address", required),
-  ruleRunner("password", "Password", required, minLength(8)),
-  ruleRunner("password2", "Password Confirmation", mustMatch("password", "Password"))
-];
+const ErrorsList = ({ errors = [] }) => (
+  <div>{errors.map(msg => <div style={{ color: "red" }}>{msg}</div>)}</div>
+);
 
 class CreateAccountForm extends Component {
-
-  constructor(props) {
-    super(props);
-    this.handleFieldChanged = this.handleFieldChanged.bind(this);
-    this.handleSubmitClicked = this.handleSubmitClicked.bind(this);
-    this.onCreateAccount = this.onCreateAccount.bind(this);
-    this.onModalClick = this.onModalClick.bind(this);
-    this.errorFor = this.errorFor.bind(this);
-    this.state = {
-      showErrors: false,
-      validationErrors: {},
-      serverErrors: []
+  state = {
+    values: {
+      username: "",
+      password: "",
+      email: ""
+    },
+    errors: {
+      login: null,
+      password: null,
+      email: null
     }
-  }
+  };
 
-  componentWillMount() {
-    // Run validations on initial state
-    this.setState({validationErrors: run(this.state, fieldValidations)});
-  }
-
-  errorFor(field) {
-    return this.state.validationErrors[field] || "";
-  }
-
-  handleFieldChanged(field) {
-    return (e) => {
-      // update() is provided by React Immutability Helpers
-      // https://facebook.github.io/react/docs/update.html
-      let newState = update(this.state, {
-        [field]: {$set: e.target.value}
-      });
-      newState.validationErrors = run(newState, fieldValidations);
-      this.setState(newState);
-    };
-  }
-
-  onCreateAccount(data) {
-    console.log(data)
-    axios.post('http://localhost:8888/auth/signup/', data)
-    .then((res) => {
-      if(res.data.success) {
-        console.log(res.data);
-      } else {
-        this.setState({...this.state, serverErrors: res.data.e})
+  validators = {
+    login: [
+      {
+        type: "allowNull",
+        args: false
+      },
+      {
+        type: "minLength",
+        args: 8
       }
-    })
-    .catch((err) => {
-      console.log(err);
+    ],
+    password: [
+      {
+        type: "allowNull",
+        args: false
+      }
+    ],
+    email: [
+      {
+        type: "allowNull",
+        args: false
+      },
+      {
+        type: "isEmail"
+      }
+    ]
+  };
+
+  onFieldChange = e => {
+    let { name, value } = e.target;
+    this.setState({
+      values: {
+        ...this.state.values,
+        [name]: value
+      }
     });
-  }
+  };
 
-  onModalClick() {
-    console.log('modal was clicked on')
-    this.setState({...this.state, serverErrors: []})
-  }
+  validateFieldValues = () => {
+    let isValid = true;
+    let errors = {};
 
-  handleSubmitClicked() {
-    this.setState({showErrors: true});
-    if($.isEmptyObject(this.state.validationErrors) === false) return null;
-    return this.onCreateAccount(this.state);
-  }
+    Object.keys(this.state.values).forEach(field => {
+      errors[field] = [];
+      const value = this.state.values[field];
+
+      const validators = this.validators[field] || [];
+
+      validators.forEach(({ type, args }) => {
+        if (type === "allowNull") {
+          if (value.trim() === "") {
+            errors[field].push("Required");
+            isValid = false;
+          }
+        }
+
+        if (type === "minLength" && args !== undefined) {
+          if (value.length < args) {
+            errors[field].push(`Should be at least ${args} long`);
+            isValid = false;
+          }
+        }
+
+        if (type === "isEmail") {
+          var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+          if (!re.test(value.toLowerCase())) {
+            errors[field].push(`Invalid Email`);
+            isValid = false;
+          }
+        }
+      });
+    });
+
+    if (isValid) {
+      this.setState({ errors: {} });
+      return isValid;
+    } else {
+      this.setState({ errors });
+      return isValid;
+    }
+  };
+
+  onSubmit = e => {
+    e.preventDefault();
+    let values = { ...this.state.values };
+    let formIsValid = this.validateFieldValues();
+    console.log(formIsValid);
+
+    if (formIsValid) {
+      axios
+        .post("http://localhost:8888/auth/signup/", values)
+        .then(res => {
+          if (res.data.success) {
+            console.log(res.data);
+          } else {
+            let dbErrors = {};
+            res.data.e.map(err => {
+              dbErrors[err.path] = [err.message];
+              console.log(dbErrors[err.path]);
+            });
+            this.setState({ errors: dbErrors });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    } else {
+      console.log("Invalid form data");
+      console.log(this.state.errors);
+    }
+  };
 
   render() {
+    const { values, errors } = this.state;
+    const { username, password, email } = values;
+
     return (
-      <div className="CreateAccount">
+      <form onSubmit={this.onSubmit}>
         <h2>Create a New Account</h2>
-
-        <TextView placeholder="username" showError={this.state.showErrors}
-                text={this.props.username} onFieldChanged={this.handleFieldChanged("username")}
-                errorText={this.errorFor("username")} /> 
-
-        <TextView placeholder="email" showError={this.state.showErrors}
-                text={this.props.email} onFieldChanged={this.handleFieldChanged("email")}
-                errorText={this.errorFor("email")} /> 
-
-        <TextView placeholder="Password" showError={this.state.showErrors} type="password"
-                  text={this.props.password1} onFieldChanged={this.handleFieldChanged("password")}
-                  errorText={this.errorFor("password")} />
-
-        <TextView placeholder="Confirm Password" showError={this.state.showErrors} type="password"
-                  text={this.props.password2} onFieldChanged={this.handleFieldChanged("password2")}
-                  errorText={this.errorFor("password2")} />
-        <input id="CreateAccountButton" type='submit' value="Create Account" onClick={this.handleSubmitClicked} ></input>
-
-        {(this.state.serverErrors.length != 0) && (
-          <ErrorModal
-            onClick={this.onModalClick}
-            errorMessage={this.state.serverErrors}
+        <div>
+          Username:
+          <input
+            name="username"
+            value={username}
+            onChange={this.onFieldChange}
           />
-        )}
-      </div>
+          <br />
+          {errors.username && <ErrorsList errors={errors.username} />}
+        </div>
+        <div>
+          Password:
+          <input
+            name="password"
+            value={password}
+            onChange={this.onFieldChange}
+          />
+          <br />
+          {errors.password && <ErrorsList errors={errors.password} />}
+        </div>
+        <div>
+          E-mail:
+          <input name="email" value={email} onChange={this.onFieldChange} />
+          <br />
+          {errors.email && <ErrorsList errors={errors.email} />}
+        </div>
+        <button type="submit">Sign Up</button>
+      </form>
     );
   }
 }
