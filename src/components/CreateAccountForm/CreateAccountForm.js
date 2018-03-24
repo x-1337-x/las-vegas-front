@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { Route, Redirect } from 'react-router';
 import axios from "axios";
 
 const ErrorsList = ({ errors = [] }) => (
@@ -16,7 +17,8 @@ class CreateAccountForm extends Component {
       login: null,
       password: null,
       email: null
-    }
+    },
+    loggedIn: false
   };
 
   validators = {
@@ -113,6 +115,8 @@ class CreateAccountForm extends Component {
         .then(res => {
           if (res.data.success) {
             console.log(res.data);
+            localStorage.setItem('JWT', res.data.token);
+            this.setState({loggedIn: true})
           } else {
             let dbErrors = {};
             res.data.e.map(err => {
@@ -132,11 +136,15 @@ class CreateAccountForm extends Component {
   };
 
   render() {
-    const { values, errors } = this.state;
+    const { values, errors, loggedIn } = this.state;
     const { username, password, email } = values;
 
     return (
-      <form onSubmit={this.onSubmit}>
+      loggedIn
+      ?
+      (<Redirect to="main" />)
+      :
+      (<form onSubmit={this.onSubmit}>
         <h2>Create a New Account</h2>
         <div>
           Username:
@@ -165,7 +173,7 @@ class CreateAccountForm extends Component {
           {errors.email && <ErrorsList errors={errors.email} />}
         </div>
         <button type="submit">Sign Up</button>
-      </form>
+      </form>)
     );
   }
 }
